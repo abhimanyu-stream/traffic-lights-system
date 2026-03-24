@@ -1,0 +1,5 @@
+{
+  "redDurationSeconds": 35,
+  "yellowDurationSeconds": 6,
+  "greenDurationSeconds": 30
+}

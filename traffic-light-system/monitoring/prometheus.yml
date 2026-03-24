@@ -1,0 +1,46 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'traffic-light-cluster'
+    environment: 'production'
+
+scrape_configs:
+  # Traffic Light Controller Application
+  - job_name: 'traffic-light-controller'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['app:9900']
+        labels:
+          application: 'traffic-light-controller'
+          service: 'api'
+    
+  # Kafka Metrics (if JMX exporter is configured)
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka:9092']
+        labels:
+          application: 'kafka'
+          service: 'message-broker'
+    
+  # MySQL Metrics (if mysqld_exporter is configured)
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['mysql:3306']
+        labels:
+          application: 'mysql'
+          service: 'database'
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - alertmanager:9093
+
+rule_files:
+  # - "alerts/*.yml"

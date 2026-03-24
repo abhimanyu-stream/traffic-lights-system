@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Properties -->
+    <property name="LOG_ROOT" value="E:/ws-world/traffic light system/logs" />
+    <property name="LOG_FILE_NAME" value="traffic-light-service" />
+    <property name="API_LOG_FILE_NAME" value="traffic-api-requests" />
+    <property name="AUDIT_LOG_FILE_NAME" value="traffic-audit" />
+    <property name="KAFKA_LOG_FILE_NAME" value="traffic-kafka-events" />
+    <property name="PERFORMANCE_LOG_FILE_NAME" value="traffic-performance" />
+    <property name="ARCHIVE_MAX_FILES" value="30" />
+    <property name="PATTERN_STANDARD" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{correlationId:-NA},%X{traceId:-NA},%X{spanId:-NA}] %-5level %logger{36} - %msg%n" />
+    <property name="PATTERN_COLORED" value="%cyan(%d{ISO8601}) %highlight(%-5level) [%X{correlationId:-NA},%X{traceId:-NA},%X{intersectionId:-NA}] [%blue(%t)] %yellow(%C{1}) - %msg%n%throwable" />
+    <property name="PATTERN_DETAILED" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{correlationId:-NA},%X{traceId:-NA},%X{spanId:-NA}] %-5level %logger{36} - [IP: %X{clientIp:-NA}, Method: %X{httpMethod:-NA}, Path: %X{requestUri:-NA}, Intersection: %X{intersectionId:-NA}] - %msg%n" />
+    <property name="PATTERN_API" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [API-%X{httpMethod:-NA}] [%X{correlationId:-NA},%X{traceId:-NA}] - Path: %X{requestUri:-NA} - Status: %X{responseStatus:-NA} - Duration: %X{executionTime:-NA}ms - Intersection: %X{intersectionId:-NA} - IP: %X{clientIp:-NA} - %msg%n" />
+    <property name="PATTERN_KAFKA" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [KAFKA-%X{kafkaOperation:-NA}] [%X{correlationId:-NA},%X{traceId:-NA}] - Topic: %X{kafkaTopic:-NA} - Partition: %X{kafkaPartition:-NA} - Offset: %X{kafkaOffset:-NA} - Key: %X{kafkaKey:-NA} - %msg%n" />
+    <property name="PATTERN_PERFORMANCE" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [PERF] [%X{correlationId:-NA}] - Operation: %X{operation:-NA} - Duration: %X{duration:-NA}ms - Intersection: %X{intersectionId:-NA} - LightId: %X{lightId:-NA} - %msg%n" />
+
+    <!-- Console Appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${PATTERN_COLORED}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Rolling File Appender for Application Logs -->
+    <appender name="APPLICATION_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_ROOT}/${LOG_FILE_NAME}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_ROOT}/archived/${LOG_FILE_NAME}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>${ARCHIVE_MAX_FILES}</maxHistory>
+            <totalSizeCap>15GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${PATTERN_DETAILED}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Rolling File Appender for API Request/Response -->
+    <appender name="API_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_ROOT}/${API_LOG_FILE_NAME}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_ROOT}/archived/${API_LOG_FILE_NAME}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>${ARCHIVE_MAX_FILES}</maxHistory>
+            <totalSizeCap>20GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${PATTERN_API}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+    </appender>
+
+    <!-- Rolling File Appender for Audit Logs -->
+    <appender name="AUDIT_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_ROOT}/${AUDIT_LOG_FILE_NAME}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_ROOT}/archived/${AUDIT_LOG_FILE_NAME}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>30MB</maxFileSize>
+            <maxHistory>${ARCHIVE_MAX_FILES}</maxHistory>
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [AUDIT] [%X{correlationId:-NA},%X{traceId:-NA}] - Action: %X{action:-NA} - Resource: %X{resource:-NA} - Intersection: %X{intersectionId:-NA} - LightId: %X{lightId:-NA} - IP: %X{clientIp:-NA} - Result: %X{result:-NA} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Rolling File Appender for Kafka Events -->
+    <appender name="KAFKA_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_ROOT}/${KAFKA_LOG_FILE_NAME}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_ROOT}/archived/${KAFKA_LOG_FILE_NAME}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>${ARCHIVE_MAX_FILES}</maxHistory>
+            <totalSizeCap>20GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${PATTERN_KAFKA}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Rolling File Appender for Performance Logs -->
+    <appender name="PERFORMANCE_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_ROOT}/${PERFORMANCE_LOG_FILE_NAME}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_ROOT}/archived/${PERFORMANCE_LOG_FILE_NAME}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>${ARCHIVE_MAX_FILES}</maxHistory>
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${PATTERN_PERFORMANCE}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Traffic Light Controller Loggers -->
+    <logger name="com.trafficlight" level="DEBUG" additivity="false">
+        <appender-ref ref="APPLICATION_LOG" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <!-- API Request/Response Logger -->
+    <logger name="com.trafficlight.filters.RequestResponseLoggingFilter" level="INFO" additivity="false">
+        <appender-ref ref="API_LOG" />
+    </logger>
+
+    <!-- Audit Logger -->
+    <logger name="AUDIT" level="INFO" additivity="false">
+        <appender-ref ref="AUDIT_LOG" />
+    </logger>
+
+    <!-- Kafka Event Logger -->
+    <logger name="com.trafficlight.event" level="INFO" additivity="false">
+        <appender-ref ref="KAFKA_LOG" />
+        <appender-ref ref="APPLICATION_LOG" />
+    </logger>
+
+    <!-- Performance Logger -->
+    <logger name="com.trafficlight.performance" level="INFO" additivity="false">
+        <appender-ref ref="PERFORMANCE_LOG" />
+    </logger>
+
+    <!-- Service Layer Loggers -->
+    <logger name="com.trafficlight.service" level="DEBUG" additivity="false">
+        <appender-ref ref="APPLICATION_LOG" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <!-- Repository Layer Loggers -->
+    <logger name="com.trafficlight.repository" level="DEBUG" additivity="false">
+        <appender-ref ref="APPLICATION_LOG" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <!-- Spring Framework Loggers -->
+    <logger name="org.springframework" level="WARN" additivity="false">
+        <appender-ref ref="APPLICATION_LOG" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <logger name="org.springframework.web" level="INFO" additivity="false">
+        <appender-ref ref="APPLICATION_LOG" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <logger name="org.springframework.transaction" level="DEBUG" additivity="false">
+        <appender-ref ref="APPLICATION_LOG" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <!-- Kafka Loggers -->
+    <logger name="org.springframework.kafka" level="INFO" additivity="false">
+        <appender-ref ref="KAFKA_LOG" />
+        <appender-ref ref="APPLICATION_LOG" />
+    </logger>
+
+    <logger name="org.apache.kafka" level="WARN" additivity="false">
+        <appender-ref ref="KAFKA_LOG" />
+    </logger>
+
+    <!-- Hibernate/JPA Loggers -->
+    <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+        <appender-ref ref="APPLICATION_LOG" />
+    </logger>
+
+    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" additivity="false">
+        <appender-ref ref="APPLICATION_LOG" />
+    </logger>
+
+    <logger name="org.hibernate.engine.transaction" level="DEBUG" additivity="false">
+        <appender-ref ref="APPLICATION_LOG" />
+    </logger>
+
+    <!-- HikariCP Connection Pool Logger -->
+    <logger name="com.zaxxer.hikari" level="INFO" additivity="false">
+        <appender-ref ref="APPLICATION_LOG" />
+    </logger>
+
+    <!-- Actuator/Health Check Loggers -->
+    <logger name="org.springframework.boot.actuate" level="INFO" additivity="false">
+        <appender-ref ref="APPLICATION_LOG" />
+    </logger>
+
+    <!-- Root Logger -->
+    <root level="WARN">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="APPLICATION_LOG" />
+    </root>
+</configuration>

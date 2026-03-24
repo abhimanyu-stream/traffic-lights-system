@@ -1,0 +1,217 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: traffic-mysql
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max_connections=200
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-traffic_light_prod}
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      MYSQL_ROOT_HOST: '%'
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql-data:/var/lib/mysql-external  # External volume for backup/restore
+      - ./src/main/resources/db/migration:/docker-entrypoint-initdb.d
+    networks:
+      - traffic-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # Zookeeper for Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: traffic-zookeeper
+    command:
+      - /etc/confluent/docker/run
+    environment:
+      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_PORT:-2181}
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_LOG4J_ROOT_LOGLEVEL: ${ZOOKEEPER_LOG_LEVEL:-WARN}
+    ports:
+      - "${ZOOKEEPER_PORT:-2181}:2181"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+      - ./zookeeper-logs:/var/lib/zookeeper/log-external  # External volume for logs
+    networks:
+      - traffic-network
+    restart: unless-stopped
+
+  # Kafka Message Broker
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: traffic-kafka
+    depends_on:
+      zookeeper:
+        condition: service_started
+    command:
+      - /etc/confluent/docker/run
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+      - "${KAFKA_EXTERNAL_PORT:-9093}:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:${ZOOKEEPER_PORT:-2181}
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_LOG4J_ROOT_LOGLEVEL: ${KAFKA_LOG_LEVEL:-WARN}
+      KAFKA_LOG_RETENTION_HOURS: ${KAFKA_LOG_RETENTION_HOURS:-168}
+      KAFKA_LOG_SEGMENT_BYTES: ${KAFKA_LOG_SEGMENT_BYTES:-1073741824}
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+      - kafka-logs:/var/log/kafka
+      - ./kafka-logs:/var/log/kafka-external  # External volume for Kafka logs
+    networks:
+      - traffic-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # Kafka UI (Optional - for monitoring)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: traffic-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: traffic-light-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - traffic-network
+    restart: unless-stopped
+
+  # Traffic Light Controller Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: traffic-light-controller:1.0.0
+    container_name: traffic-app
+    depends_on:
+      mysql:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    command:
+      - -Xms512m
+      - -Xmx1g
+      - -XX:+UseG1GC
+      - -XX:MaxGCPauseMillis=200
+      - -XX:+HeapDumpOnOutOfMemoryError
+      - -XX:HeapDumpPath=/app/logs
+      - -jar
+      - app.jar
+      - --spring.profiles.active=${SPRING_PROFILE:-prod}
+    ports:
+      - "${APP_PORT:-9900}:9900"
+    environment:
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE:-prod}
+      
+      # Database Configuration
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE:-traffic_light_prod}
+      DB_USERNAME: ${MYSQL_USER:-root}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-root}
+      
+      # Kafka Configuration
+      KAFKA_BOOTSTRAP_SERVERS: kafka:${KAFKA_PORT:-9092}
+    volumes:
+      - app-logs:/app/logs
+      - ./app-logs:/app/logs-external  # External volume for application logs
+    networks:
+      - traffic-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9900/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # Prometheus (Optional - for metrics)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: traffic-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - traffic-network
+    restart: unless-stopped
+
+  # Grafana (Optional - for dashboards)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: traffic-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - traffic-network
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+    driver: local
+  zookeeper-data:
+    driver: local
+  zookeeper-logs:
+    driver: local
+  kafka-data:
+    driver: local
+  kafka-logs:
+    driver: local
+  app-logs:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  traffic-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

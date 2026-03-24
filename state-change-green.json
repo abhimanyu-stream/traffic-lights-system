@@ -1,0 +1,5 @@
+{
+  "targetState": "GREEN",
+  "reason": "Manual state change for testing",
+  "requestedBy": "API Test"
+}

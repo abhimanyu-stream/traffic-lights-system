@@ -1,0 +1,8 @@
+{
+  "intersectionId": "b4080c7b-2b3a-47fb-b2cf-7eaee8e1bc3b",
+  "state": "YELLOW",
+  "durationSeconds": 5,
+  "sequenceOrder": 3,
+  "description": "Yellow light phase - prepare to stop",
+  "isActive": true
+}

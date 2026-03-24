@@ -1,0 +1,11 @@
+{
+  "intersectionId": "75d489bc-2667-4f54-9431-39c03a49a4fb",
+  "state": "RED",
+  "sequenceOrder": 1,
+  "isActive": true,
+  "timingConfiguration": {
+    "redDuration": 30,
+    "yellowDuration": 5,
+    "greenDuration": 25
+  }
+}

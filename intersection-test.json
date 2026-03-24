@@ -1,0 +1,9 @@
+{
+  "name": "Main Street and Oak Avenue",
+  "description": "Primary intersection downtown",
+  "coordinates": {
+    "latitude": 40.7128,
+    "longitude": -74.0060
+  },
+  "isActive": true
+}
